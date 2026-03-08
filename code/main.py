@@ -1,12 +1,13 @@
 import pandas as pd
 import os
-from sklearn.neighbors import NearestNeighbors
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import confusion_matrix
+from sklearn.decomposition import PCA
+from sklearn.linear_model import LogisticRegression
 import numpy as np
 
-from utils import load_train_test_imgs, convert_to_grayscale, sample_per_label
+from utils import get_metrics, load_train_test_imgs, convert_to_grayscale, sample_per_label
 
 def main():
     train_imgs, test_imgs, train_labels, test_labels = load_train_test_imgs()
@@ -30,59 +31,45 @@ def main():
     scaled_train_pixels = np.array(scaled_train_pixels)
     scaled_test_pixels = np.array(scaled_test_pixels)
 
+    # Apply PCA
+    pca = PCA(n_components=50)
+    pca_train_pixels = pca.fit_transform(scaled_train_pixels)
+    pca_test_pixels = pca.transform(scaled_test_pixels)
+
+    scaled_train_pixels = pca_train_pixels
+    scaled_test_pixels = pca_test_pixels
+
     # Encode labels
     label_encoder = LabelEncoder()
     encoded_train_labels = label_encoder.fit_transform(train_labels)
     encoded_test_labels = label_encoder.transform(test_labels)
 
     # Train KNN
-    nn_model = NearestNeighbors(n_neighbors=5, algorithm='auto')
-    nn_model.fit(scaled_train_pixels)
+    knn_model = KNeighborsClassifier(n_neighbors=5)
+    knn_model.fit(scaled_train_pixels, encoded_train_labels)
 
     # Predict
-    distances, indices = nn_model.kneighbors(scaled_test_pixels)
+    predicted_labels = knn_model.predict(scaled_test_pixels)
 
-    predicted_labels = []
-    for idx in indices:
-        neighbor_labels = encoded_train_labels[idx]
-        values, counts = np.unique(neighbor_labels, return_counts=True)
-        predicted_labels.append(values[np.argmax(counts)])
+    # Get metrics for KNN
+    knn_metrics = get_metrics(y_true=encoded_test_labels, y_pred=predicted_labels)
 
-    # Print accuracy, recall, precision, and F1-score
-    cm = confusion_matrix(encoded_test_labels, predicted_labels)
-    print("Confusion Matrix:")
-    print(cm)
+    print("KNN Metrics:")
+    for metric, value in knn_metrics.items():
+        print(f"{metric.capitalize()}: {value}")
 
-    # Accuracy
-    accuracy = np.mean(predicted_labels == encoded_test_labels)
+    # Train Logistic Regression
+    lr_model = LogisticRegression(max_iter=1000)
+    lr_model.fit(scaled_train_pixels, encoded_train_labels)
 
-    # Precision, Recall, F1-score (per class)
-    precision = []
-    recall = []
-    f1 = []
+    # Predict with Logistic Regression
+    lr_predicted_labels = lr_model.predict(scaled_test_pixels)
 
-    for i in range(len(cm)):
-        tp = cm[i, i]
-        fp = cm[:, i].sum() - tp
-        fn = cm[i, :].sum() - tp
-
-        p = tp / (tp + fp) if (tp + fp) != 0 else 0
-        r = tp / (tp + fn) if (tp + fn) != 0 else 0
-        f = 2 * p * r / (p + r) if (p + r) != 0 else 0
-
-        precision.append(p)
-        recall.append(r)
-        f1.append(f)
-
-    # Average metrics
-    avg_precision = np.mean(precision)
-    avg_recall = np.mean(recall)
-    avg_f1 = np.mean(f1)
-
-    print("Accuracy:", accuracy)
-    print("Precision:", avg_precision)
-    print("Recall:", avg_recall)
-    print("F1-score:", avg_f1)
+    # Get metrics for Logistic Regression
+    lr_metrics = get_metrics(y_true=encoded_test_labels, y_pred=lr_predicted_labels)
+    print("\nLogistic Regression Metrics:")
+    for metric, value in lr_metrics.items():
+        print(f"{metric.capitalize()}: {value}")
 
 
 if __name__ == "__main__":
