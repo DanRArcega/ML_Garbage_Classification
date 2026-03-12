@@ -20,8 +20,8 @@ def main():
     test_imgs = convert_to_grayscale(test_imgs)
 
     # Flatten pixel values
-    train_pixels = [list(img.get_flattened_data()) for img in train_imgs]
-    test_pixels = [list(img.get_flattened_data()) for img in test_imgs]
+    train_pixels = [list(img.getdata()) for img in train_imgs]
+    test_pixels = [list(img.getdata()) for img in test_imgs]
 
     # Scale pixels
     scaler = StandardScaler()
@@ -32,9 +32,10 @@ def main():
     scaled_test_pixels = np.array(scaled_test_pixels)
 
     # Apply PCA
-    pca = PCA(n_components=50)
+    pca = PCA(n_components=0.95)
     pca_train_pixels = pca.fit_transform(scaled_train_pixels)
     pca_test_pixels = pca.transform(scaled_test_pixels)
+    print("0.95 -> Components:", pca.n_components_)
 
     scaled_train_pixels = pca_train_pixels
     scaled_test_pixels = pca_test_pixels
