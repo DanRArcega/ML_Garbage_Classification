@@ -1,3 +1,5 @@
+import torch
+
 from download_data import get_dataframe
 from typing import Tuple, List
 import pandas as pd
