@@ -7,23 +7,34 @@ from PIL import Image
 import os
 from collections import defaultdict
 from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import train_test_split
 import numpy as np
 
 def load_train_test_imgs(
     dir: str = '../data/Garbage classification'
 ) -> Tuple[List[Image.Image], List[Image.Image], List[str], List[str]]:
-    train_path = os.path.join(dir, 'train')
-    test_path = os.path.join(dir, 'test')
-
-    train_data = get_dataframe(train_path)
-    test_data = get_dataframe(test_path)
-
+    
+    # Load all data from the 'train' folder
+    full_path = os.path.join(dir, 'train')
+    full_data = get_dataframe(full_path)
+    
+    # Split the dataframe into train and test (80% train, 20% test)
+    # By stratifying on the label column, we ensure balanced class distribution
+    train_data, test_data = train_test_split(
+        full_data, 
+        test_size=0.2, 
+        random_state=42, 
+        stratify=full_data['label']
+    )
+    
+    # Open images using the 'path' column (matching your original working code)
     train_imgs = [Image.open(path) for path in train_data['path']]
     test_imgs = [Image.open(path) for path in test_data['path']]
-
+    
+    # Extract the labels directly from the split dataframes
     train_labels = train_data['label'].to_list()
     test_labels = test_data['label'].to_list()
-
+    
     return train_imgs, test_imgs, train_labels, test_labels
 
 
