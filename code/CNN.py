@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# This is a basic skeleton that will be revamped once development on the CNN starts
 class GarbageClassificationCNN(nn.Module):
     def __init__(self):
         # Use the default architecture from the PyTorch tutorial as a starting point
