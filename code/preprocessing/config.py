@@ -23,9 +23,9 @@ class DataConfig:
     target_size: tuple[int, int] = (224, 224)
 
     # Training splits
-    training_ratio: float = 0.80
+    training_ratio: float = 0.70
     validation_ratio: float = 0.15
-    test_ratio: float = 0.20
+    test_ratio: float = 0.15
     split_random_seed: int = 42
 
     # Preprocessing options

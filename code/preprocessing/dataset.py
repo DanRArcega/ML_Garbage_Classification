@@ -11,8 +11,8 @@ import pandas as pd
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 
-from config import CLASSES, DATA_CONFIG, Classes, DataConfig
-from transforms import build_evaluation_transforms, build_training_transforms
+from .config import CLASSES, DATA_CONFIG, Classes, DataConfig
+from .transforms import build_evaluation_transforms, build_training_transforms
 
 
 class GarbageDataset(Dataset):
@@ -33,8 +33,8 @@ class GarbageDataset(Dataset):
         :param transform: The transformation to use (with torchvision), defaults to None.
         :type transform: torch.nn.Module, optional
         """
-        assert split in ["train", "val", "test"], \
-        f"split must be \"train\", \"val\", or \"test\"."
+        assert split in ["train", "validation", "test"], \
+        f"split must be \"train\", \"validation\", or \"test\"."
 
         self.label_to_index = label_to_index
         self.transform = transform
@@ -103,7 +103,7 @@ def build_dataloaders(
     eval_transform = build_evaluation_transforms(cfg)
 
     train_dataset = GarbageDataset(manifest_path, "train", classes.label_to_index, train_transform)
-    val_dataset = GarbageDataset(manifest_path, "val", classes.label_to_index, eval_transform)
+    val_dataset = GarbageDataset(manifest_path, "validation", classes.label_to_index, eval_transform)
     test_dataset = GarbageDataset(manifest_path, "test", classes.label_to_index, eval_transform)
 
     train_loader = DataLoader(

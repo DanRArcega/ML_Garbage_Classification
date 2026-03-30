@@ -4,11 +4,47 @@ from download_data import get_dataframe
 from typing import Tuple, List
 import pandas as pd
 from PIL import Image
+from pathlib import Path
 import os
 from collections import defaultdict
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 import numpy as np
+
+
+PROCESSED_IMAGES = "../data/Garbage classification/processed"
+
+
+def load_split(split_path: Path) -> pd.DataFrame:
+    """
+
+    :param split_path:
+    :return:
+    """
+    records = []
+    for label_dir in split_path.iterdir():
+        if not label_dir.is_dir():
+            continue
+        for image_path in label_dir.glob("*.jpg"):
+            records.append({"path": image_path, "label": label_dir.name})
+    return pd.DataFrame(records)
+
+
+def new_load_train_test_imgs(dir: str = PROCESSED_IMAGES) -> Tuple[List[Image.Image], List[Image.Image], List[str], List[str]]:
+    """
+    Loads the testing and training splits from the processed image directories.
+    :param dir: The root directory of the processed images.
+    :type dir: str
+    :return: A list of both sets of images and their labels.
+    :rtype: Tuple[List[Image.Image], List[Image.Image], List[str], List[str]]
+    """
+    full_train = load_split(Path(dir) / "train")
+    full_test = load_split(Path(dir) / "test")
+
+    train_images = [Image.open(p) for p in full_train["path"]]
+    test_images = [Image.open(p) for p in full_test["path"]]
+    return train_images, full_train["label"].to_list(), train_images, full_test["label"].to_list()
+
 
 def load_train_test_imgs(
     dir: str = '../data/Garbage classification'
@@ -17,7 +53,7 @@ def load_train_test_imgs(
     # Load all data from the 'train' folder
     full_path = os.path.join(dir, 'train')
     full_data = get_dataframe(full_path)
-    
+
     # Split the dataframe into train and test (80% train, 20% test)
     # By stratifying on the label column, we ensure balanced class distribution
     train_data, test_data = train_test_split(

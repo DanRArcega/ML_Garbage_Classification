@@ -7,7 +7,7 @@ class GarbageClassificationCNN(nn.Module):
     def __init__(self):
         # Use the default architecture from the PyTorch tutorial as a starting point
         super().__init__()
-        self.conv1 = nn.Conv2d(1, 6, 5) # 1 input channel (grayscale)
+        self.conv1 = nn.Conv2d(3, 6, 5) # 3 channels, no longer greyscale
         self.pool  = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
         self.adaptive_pool = nn.AdaptiveAvgPool2d((5, 5))  # Add adaptive pooling to ensure the output size is consistent regardless of input image size

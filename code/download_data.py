@@ -11,6 +11,7 @@ import os
 import zipfile
 import requests
 from tqdm import tqdm
+from pathlib import Path
 
 
 GARBAGE_DATA_URL = "https://www.kaggle.com/datasets/hassnainzaidi/garbage-classification/croissant/download"
@@ -58,8 +59,11 @@ def download_pull(url: str, directory: str) -> None:
 
     print("Extracting archive...")
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        members = zip_ref.infolist()
-        for member in tqdm(members, desc = "extracting", unit = "file"):
+        #for m in zip_ref.infolist()[:20]:
+        #    print(m.filename)
+        members = [m for m in zip_ref.infolist() if "train/" in m.filename]
+        for member in tqdm(members, desc = "Extracting archive", unit = "file"):
+            member.filename = member.filename.replace("train/", "raw/")
             zip_ref.extract(member, directory)
     os.remove(zip_path)
 
@@ -73,12 +77,16 @@ def get_dataframe(directory: str) -> pd.DataFrame:
     :rtype: pd.DataFrame
     """
     records = []
-    for root, directories, files in os.walk(directory):
-        for file_name in tqdm(files, desc = os.path.basename(root), unit = "file", leave = False):
-            if file_name.lower().endswith(".jpg"):
-                label = os.path.basename(root)
-                path = os.path.join(root, file_name)
-                records.append({"path": path, "label": label})
+    raw_directory = Path(directory) / "Garbage classification" / "raw"
+    for label_directory in sorted(raw_directory.iterdir()):
+        if not label_directory.is_dir():
+            continue
+        files = list(label_directory.glob("*.jpg"))
+        for image_path in tqdm(files, desc = label_directory.name, unit = "file"):
+            records.append({
+                "path": str(image_path),
+                "label": label_directory.name,
+            })
     return pd.DataFrame(records)
 
 
