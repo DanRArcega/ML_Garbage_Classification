@@ -17,8 +17,12 @@ from tqdm import tqdm
 import cv2
 from sklearn.model_selection import train_test_split
 
-from config import DATA_CONFIG, DataConfig
-from transforms import resize_image, apply_clahe
+try:
+    from .config import DATA_CONFIG, DataConfig
+    from .transforms import resize_image, apply_clahe
+except ImportError:
+    from config import DATA_CONFIG, DataConfig
+    from transforms import resize_image, apply_clahe
 
 
 def gather_images(data_directory: Path) -> pd.DataFrame:

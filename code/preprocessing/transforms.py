@@ -11,7 +11,10 @@ from PIL import Image
 import torchvision
 from torchvision import transforms
 
-from .config import DataConfig
+try:
+    from .config import DataConfig
+except ImportError:
+    from config import DataConfig
 
 
 def pil_to_cv2(image: Image.Image) -> np.ndarray:

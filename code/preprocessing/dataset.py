@@ -11,8 +11,12 @@ import pandas as pd
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 
-from .config import CLASSES, DATA_CONFIG, Classes, DataConfig
-from .transforms import build_evaluation_transforms, build_training_transforms
+try:
+    from .config import CLASSES, DATA_CONFIG, Classes, DataConfig
+    from .transforms import build_evaluation_transforms, build_training_transforms
+except ImportError:
+    from config import CLASSES, DATA_CONFIG, Classes, DataConfig
+    from transforms import build_evaluation_transforms, build_training_transforms
 
 
 class GarbageDataset(Dataset):
