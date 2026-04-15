@@ -122,3 +122,5 @@ def get_metrics(y_true, y_pred):
         'recall': np.mean(recall),
         'f1_score': np.mean(f1)
     }
+
+
