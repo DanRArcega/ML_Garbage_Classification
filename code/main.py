@@ -11,62 +11,37 @@ from preprocessing.config import DataConfig, DATA_CONFIG, Classes, CLASSES
 from CNN import GarbageClassificationCNN
 
 def main():
-
-
-    # # Train KNN
-    # knn_model = KNeighborsClassifier(n_neighbors=5)
-    # knn_model.fit(scaled_train_pixels, encoded_train_labels)
-
-    # # Predict
-    # predicted_labels = knn_model.predict(scaled_test_pixels)
-
-    # # Get metrics for KNN
-    # knn_metrics = get_metrics(y_true=encoded_test_labels, y_pred=predicted_labels)
-
-    # print("KNN Metrics:")
-    # for metric, value in knn_metrics.items():
-    #     print(f"{metric.capitalize()}: {value}")
-
-    # # Train Logistic Regression
-    # lr_model = LogisticRegression(max_iter=1000)
-    # lr_model.fit(scaled_train_pixels, encoded_train_labels)
-
-    # # Predict with Logistic Regression
-    # lr_predicted_labels = lr_model.predict(scaled_test_pixels)
-
-    # # Get metrics for Logistic Regression
-    # lr_metrics = get_metrics(y_true=encoded_test_labels, y_pred=lr_predicted_labels)
-    # print("\nLogistic Regression Metrics:")
-    # for metric, value in lr_metrics.items():
-    #     print(f"{metric.capitalize()}: {value}")
-        
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     cnn = GarbageClassificationCNN().to(device)
     criterion = nn.CrossEntropyLoss()
+    
+    # Khởi tạo Optimizer và Scheduler
     optimizer = torch.optim.Adam(cnn.parameters(), lr=0.001)
+    
+    # ReduceLROnPlateau:
+    # mode='min': Reduce the learning rate when the quantity monitored has stopped decreasing (i.e., when validation loss stops improving).
+    # factor=0.5: Reduce the learning rate by a factor of 0.5 (i.e., new_lr = old_lr * 0.5) when triggered.
+    # patience=3: Wait for 3 epochs with no improvement before reducing the learning rate. 
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
 
     # Normalize pixel values to [0, 1]
     def imgs_to_4d_tensor(imgs, device):
         arrays = np.stack([np.array(img, dtype=np.float32) / 255.0 for img in imgs])
         return torch.tensor(arrays[:, np.newaxis, :, :], dtype=torch.float32).to(device)
 
-
     print("Building dataloaders...")
     train_loader, test_loader, validation_loader = build_dataloaders(DATA_CONFIG, CLASSES)
     print("Dataloaders ready.")
-    #X_train_tensor = imgs_to_4d_tensor(train_imgs, device)
-    #X_test_tensor  = imgs_to_4d_tensor(test_imgs, device)
-    #y_train_tensor = torch.tensor(encoded_train_labels, dtype=torch.long).to(device)
-    #y_test_tensor  = torch.tensor(encoded_test_labels,  dtype=torch.long).to(device)
 
-    num_epochs = 20
-    #batch_size = 32
+    num_epochs = 50
 
     for epoch in range(num_epochs):
+        # --- TRAINING PHASE ---
         cnn.train()
-        total_loss = 0.0
+        total_train_loss = 0.0
+        
         for images, labels in train_loader:
             images, labels = images.to(device), labels.to(device)
             outputs = cnn(images)
@@ -75,27 +50,40 @@ def main():
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            total_loss += loss.item()
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss / len(train_loader):.4f}")
+            total_train_loss += loss.item()
+            
+        avg_train_loss = total_train_loss / len(train_loader)
+        
+        # --- VALIDATION PHASE ---
+        cnn.eval()
+        total_val_loss = 0.0
+        with torch.no_grad():
+            for val_images, val_labels in validation_loader:
+                val_images, val_labels = val_images.to(device), val_labels.to(device)
+                val_outputs = cnn(val_images)
+                v_loss = criterion(val_outputs, val_labels)
+                total_val_loss += v_loss.item()
+                
+        avg_val_loss = total_val_loss / len(validation_loader)
+        
+        current_lr = optimizer.param_groups[0]['lr']
+        print(f"Epoch [{epoch+1}/{num_epochs}] | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | LR: {current_lr}")
 
+        scheduler.step(avg_val_loss)
+
+    # --- TESTING PHASE ---
     cnn.eval()
     all_preds = []
     all_labels = []
     with torch.no_grad():
         for images, labels in test_loader:
-    #    for i in range(0, len(X_test_tensor), batch_size):
-    #        X_batch = X_test_tensor[i:i + batch_size]
             images = images.to(device)
             outputs = cnn(images)
             _, preds = torch.max(outputs, 1)
             all_preds.extend(preds.cpu().numpy())
             all_labels.extend(labels.numpy())
 
-    #predicted_labels = torch.cat(all_preds).numpy()
-
-    #y_test_cpu = y_test_tensor.cpu().numpy()
-
-    cnn_metrics = get_metrics(y_true = all_labels, y_pred = all_preds)
+    cnn_metrics = get_metrics(y_true=all_labels, y_pred=all_preds)
     print("\nCNN Metrics:")
     for metric, value in cnn_metrics.items():
         print(f"{metric.capitalize()}: {value}")
