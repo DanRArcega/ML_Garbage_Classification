@@ -5,6 +5,8 @@ from sklearn.neighbors import KNeighborsClassifier
 import torch
 from torch import nn
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+
+import utils
 from utils import get_metrics, load_train_test_imgs, convert_to_grayscale, sample_per_label, new_load_train_test_imgs
 from preprocessing.dataset import build_dataloaders
 from preprocessing.config import DataConfig, DATA_CONFIG, Classes, CLASSES
@@ -14,8 +16,8 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--knn", type=bool, action = 'store_true', help = "Use KNN model" )
-    parser.add_argument("--lr", type=bool, action = 'store_true', help = "Use logistic regression model" )
+    parser.add_argument("--knn", action = 'store_true', help = "Use KNN model" )
+    parser.add_argument("--lr", action = 'store_true', help = "Use logistic regression model" )
     args = parser.parse_args()
     output_dir = "../data/graphs"
         
@@ -39,45 +41,61 @@ def main():
     #X_test_tensor  = imgs_to_4d_tensor(test_imgs, device)
     #y_train_tensor = torch.tensor(encoded_train_labels, dtype=torch.long).to(device)
     #y_test_tensor  = torch.tensor(encoded_test_labels,  dtype=torch.long).to(device)
+
+    # If KNN or Logistic Regression are to be used, load data into memory from dataloaders
+    scaled_train_pixels = []
+    encoded_train_labels = []
+    scaled_test_pixels = []
+    encoded_test_labels = []
+    if args.knn or args.lr:
+        scaled_train_pixels, encoded_train_labels = utils.extract_dataloader_data(train_loader)
+        scaled_test_pixels, encoded_test_labels = utils.extract_dataloader_data(test_loader)
+
     if args.knn:
-        scaled_train_pixels = []
-        encoded_train_labels = []
-        for images, labels in train_loader:
-            scaled_train_pixels.append(images.cpu().numpy())
-            encoded_train_labels.append(labels.cpu().numpy())
-        scaled_train_pixels = np.concatenate(scaled_train_pixels)
-        encoded_train_labels = np.concatenate(encoded_train_labels)
+
         # Train KNN
         knn_model = KNeighborsClassifier(n_neighbors=5)
         knn_model.fit(scaled_train_pixels, encoded_train_labels)
 
-
         # Predict
-        predicted_labels = knn_model.predict(scaled_test_pixels)
-        predictions = []
-        for images, labels in test_loader:
-            X = images.cpu().numpy()
-            y = labels.cpu().numpy()
-            predictions.append(knn_model.predict(X))
-        # # Get metrics for KNN
-        # knn_metrics = get_metrics(y_true=encoded_test_labels, y_pred=predicted_labels)
-        #
-        # print("KNN Metrics:")
-        # for metric, value in knn_metrics.items():
-        #     print(f"{metric.capitalize()}: {value}")
+        knn_predicted_labels = knn_model.predict(scaled_test_pixels)
 
-    # # Train Logistic Regression
-    # lr_model = LogisticRegression(max_iter=1000)
-    # lr_model.fit(scaled_train_pixels, encoded_train_labels)
+        # Get metrics for KNN
+        knn_metrics = get_metrics(y_true=encoded_test_labels, y_pred=knn_predicted_labels)
 
-    # # Predict with Logistic Regression
-    # lr_predicted_labels = lr_model.predict(scaled_test_pixels)
+        print("KNN Metrics:")
+        for metric, value in knn_metrics.items():
+            print(f"{metric.capitalize()}: {value}")
 
-    # # Get metrics for Logistic Regression
-    # lr_metrics = get_metrics(y_true=encoded_test_labels, y_pred=lr_predicted_labels)
-    # print("\nLogistic Regression Metrics:")
-    # for metric, value in lr_metrics.items():
-    #     print(f"{metric.capitalize()}: {value}")
+        # Create and save confusion matrix
+        cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true=encoded_test_labels,
+                                                                             y_pred=knn_predicted_labels),
+                                                                             display_labels=CLASSES.names)
+        cnn_matrix.plot()
+        plt.savefig(output_dir + "/knn_confusion_matrix.png")
+        print("Saving confusion matrix...")
+
+    if args.lr:
+        # Train Logistic Regression
+        lr_model = LogisticRegression(max_iter=1000)
+        lr_model.fit(scaled_train_pixels, encoded_train_labels)
+
+        # Predict with Logistic Regression
+        lr_predicted_labels = lr_model.predict(scaled_test_pixels)
+
+        # Get metrics for Logistic Regression
+        lr_metrics = get_metrics(y_true=encoded_test_labels, y_pred=lr_predicted_labels)
+        print("\nLogistic Regression Metrics:")
+        for metric, value in lr_metrics.items():
+            print(f"{metric.capitalize()}: {value}")
+
+        # Create and save confusion matrix
+        cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true=encoded_test_labels,
+                                                                             y_pred=lr_predicted_labels),
+                                                                             display_labels=CLASSES.names)
+        cnn_matrix.plot()
+        plt.savefig(output_dir + "/lr_confusion_matrix.png")
+        print("Saving confusion matrix...")
 
     # Training CNN
     num_epochs = 20
