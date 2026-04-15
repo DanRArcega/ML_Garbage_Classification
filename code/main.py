@@ -10,9 +10,13 @@ from preprocessing.dataset import build_dataloaders
 from preprocessing.config import DataConfig, DATA_CONFIG, Classes, CLASSES
 from CNN import GarbageClassificationCNN
 import matplotlib.pyplot as plt
+import argparse
 
 def main():
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--knn", type=bool, action = 'store_true', help = "Use KNN model" )
+    parser.add_argument("--lr", type=bool, action = 'store_true', help = "Use logistic regression model" )
+    args = parser.parse_args()
     output_dir = "../data/graphs"
         
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -35,20 +39,32 @@ def main():
     #X_test_tensor  = imgs_to_4d_tensor(test_imgs, device)
     #y_train_tensor = torch.tensor(encoded_train_labels, dtype=torch.long).to(device)
     #y_test_tensor  = torch.tensor(encoded_test_labels,  dtype=torch.long).to(device)
+    if args.knn:
+        scaled_train_pixels = []
+        encoded_train_labels = []
+        for images, labels in train_loader:
+            scaled_train_pixels.append(images.cpu().numpy())
+            encoded_train_labels.append(labels.cpu().numpy())
+        scaled_train_pixels = np.concatenate(scaled_train_pixels)
+        encoded_train_labels = np.concatenate(encoded_train_labels)
+        # Train KNN
+        knn_model = KNeighborsClassifier(n_neighbors=5)
+        knn_model.fit(scaled_train_pixels, encoded_train_labels)
 
-    # # Train KNN
-    # knn_model = KNeighborsClassifier(n_neighbors=5)
-    # knn_model.fit(scaled_train_pixels, encoded_train_labels)
-    #
-    # # Predict
-    # predicted_labels = knn_model.predict(scaled_test_pixels)
-    #
-    # # Get metrics for KNN
-    # knn_metrics = get_metrics(y_true=encoded_test_labels, y_pred=predicted_labels)
-    #
-    # print("KNN Metrics:")
-    # for metric, value in knn_metrics.items():
-    #     print(f"{metric.capitalize()}: {value}")
+
+        # Predict
+        predicted_labels = knn_model.predict(scaled_test_pixels)
+        predictions = []
+        for images, labels in test_loader:
+            X = images.cpu().numpy()
+            y = labels.cpu().numpy()
+            predictions.append(knn_model.predict(X))
+        # # Get metrics for KNN
+        # knn_metrics = get_metrics(y_true=encoded_test_labels, y_pred=predicted_labels)
+        #
+        # print("KNN Metrics:")
+        # for metric, value in knn_metrics.items():
+        #     print(f"{metric.capitalize()}: {value}")
 
     # # Train Logistic Regression
     # lr_model = LogisticRegression(max_iter=1000)
