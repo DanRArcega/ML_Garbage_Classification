@@ -216,7 +216,7 @@ def print_results(results: list[dict]) -> None:
         print("=" * 80)
 
     best = max(results, key = lambda x: x["f1"])
-    print(f"\nBest combination: mode = {best["mode"]}, kernel = {best["kernel"]}, "
+    print(f"\nBest combination: mode = {best["mode"]}, kernel = {best["kernel"]}",
           f"F1 = {best["f1"]:.4f}, Accuracy = {best["accuracy"]:.4f}")
     print(f"Best Parameters:    {best['best_params']}")
 
@@ -274,24 +274,6 @@ def main():
                    for result in results]
     pd.DataFrame(csv_results).to_csv(results_path, index = False)
     print(f"\nResults saved to {results_path}")
-
-    best = max(results, key = lambda x: x["f1"])
-    print(f"\nRunning test-set evaluation of best model configuration...")
-    print(f"    Mode : {best['mode']}")
-    print(f"    Kernel : {best['kernel']}")
-    print(f"    Parameters : {best['best_params']}")
-
-    final_metrics = evaluate_final(
-        manifest_path = manifest_path,
-        mode = best["mode"],
-        kernel = best["kernel"],
-        best_params = best["best_params"],
-        hog_scaler = best["hog_scaler"],
-        color_scaler = best["color_scaler"],
-        label_encoder = best["label_encoder"],
-        pca = best["pca"]
-    )
-
 
 
 
