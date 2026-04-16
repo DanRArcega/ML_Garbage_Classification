@@ -275,6 +275,19 @@ def main():
     pd.DataFrame(csv_results).to_csv(results_path, index = False)
     print(f"\nResults saved to {results_path}")
 
+    best = max(results, key = lambda x: x["f1"])
+    final_metrics = evaluate_final(
+        manifest_path = manifest_path,
+        mode = best["mode"],
+        kernel = best["kernel"],
+        best_params = best["best_params"],
+        hog_scaler = best["hog_scaler"],
+        color_scaler = best["color_scaler"],
+        label_encoder = best["label_encoder"],
+        pca = best["pca"],
+    )
+
+
 
 
 if __name__ == "__main__":
