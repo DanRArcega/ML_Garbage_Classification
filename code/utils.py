@@ -122,3 +122,15 @@ def get_metrics(y_true, y_pred):
         'recall': np.mean(recall),
         'f1_score': np.mean(f1)
     }
+# Extract all data from a data loader and return appropiate np.arrays
+# Can be dangerous if the total dataset is too big
+def extract_dataloader_data(dataloader):
+    scaled_pixels = []
+    encoded_labels = []
+    for images, labels in dataloader:
+        image = images.cpu().numpy()
+        scaled_pixels.append(image.reshape(image.shape[0], -1))
+        encoded_labels.append(labels.cpu().numpy())
+    scaled_pixels = np.concatenate(scaled_pixels)
+    encoded_labels = np.concatenate(encoded_labels)
+    return scaled_pixels, encoded_labels
