@@ -18,7 +18,7 @@ from PIL import Image
 from tqdm import tqdm
 
 
-HISTOGRAM_BINS = 32
+HISTOGRAM_BINS = 64
 
 
 def extract_color_histogram(image: Image.Image) -> np.ndarray:

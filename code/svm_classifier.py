@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import time
+import datetime
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -106,7 +108,7 @@ def train_and_evaluate(
         PARAMETER_GRIDS[kernel],
         cv = CV_FOLDS,
         scoring = "accuracy",
-        n_jobs = -1,
+        n_jobs = -2,
         verbose = 1
     )
     grid_search.fit(X_train, y_train)
@@ -227,6 +229,7 @@ def main():
     manifest_path = DATA_CONFIG.processed_data_path / "manifest.csv"
     results = []
 
+    training_start = time.time()
     for mode in tqdm(MODES, desc = "Feature Extraction Modes", unit = "mode"):
         print(f"\n{"=" * 60}")
         print(f"Extracting features - Mode: {mode}")
@@ -274,7 +277,9 @@ def main():
                    for result in results]
     pd.DataFrame(csv_results).to_csv(results_path, index = False)
     print(f"\nResults saved to {results_path}")
-
+    training_total = time.time() - training_start
+    print(f"\nTotal training time: {str(datetime.timedelta(seconds=int(round(training_total))))}")
+    testing_start = time.time()
     best = max(results, key = lambda x: x["f1"])
     final_metrics = evaluate_final(
         manifest_path = manifest_path,
@@ -286,6 +291,8 @@ def main():
         label_encoder = best["label_encoder"],
         pca = best["pca"],
     )
+    testing_end = time.time() - testing_start
+    print(f"\nTesting time: {str(datetime.timedelta(seconds=int(round(testing_end))))}")
 
 
 
