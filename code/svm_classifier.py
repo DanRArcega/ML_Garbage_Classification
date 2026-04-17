@@ -135,8 +135,7 @@ def evaluate_final(
         mode: str,
         kernel: str,
         best_params: dict,
-        hog_scaler: StandardScaler,
-        color_scaler: StandardScaler,
+        scalers: dict[str, StandardScaler],
         label_encoder: LabelEncoder,
         pca: PCA
 ) -> dict:
@@ -150,10 +149,8 @@ def evaluate_final(
     :type kernel: str
     :param best_params: The best hyperparameters from GridSearchCV.
     :type best_params: dict
-    :param hog_scaler: Fitted HOG scaler from training and validation.
-    :type hog_scaler: StandardScaler
-    :param color_scaler: Fitted color scaler from training and validation.
-    :type color_scaler: StandardScaler
+    :param scalers: The set of fitted scalers.
+    :type scalers: dict
     :param label_encoder: Fitted label encoder from training and validation.
     :type label_encoder: LabelEncoder
     :param pca: The fitted PCA from training and validation.
@@ -161,20 +158,18 @@ def evaluate_final(
     :return: A dictionary of metrics from the final evaluation of the test set.
     :rtype: dict
     """
-    X_train, y_train, _, _, _ = extract_features(
+    X_train, y_train, _, _ = extract_features(
         manifest_path,
         split = "train",
         mode = mode,
-        hog_scaler = hog_scaler,
-        color_scaler = color_scaler,
+        scalers = scalers,
         label_encoder = label_encoder
     )
-    X_test, y_test, _, _, _ = extract_features(
+    X_test, y_test, _, _ = extract_features(
         manifest_path,
         split = "test",
         mode = mode,
-        hog_scaler = hog_scaler,
-        color_scaler = color_scaler,
+        scalers = scalers,
         label_encoder = label_encoder
     )
 
