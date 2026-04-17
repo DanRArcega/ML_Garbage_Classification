@@ -16,8 +16,15 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from features.hog import extract_hog_features
 from features.color_histogram import extract_histogram_features
+from features.spatial_color import extract_color_spatial_features
 
-FEATURE_MODE = Literal["hog", "color", "both"]
+
+GRID_SIZES = {
+    "spatial_2x2": (2, 2),
+    "spatial_3x3": (3, 3)
+}
+
+FEATURE_MODE = Literal["hog", "color", "spatial_2x2", "spatial_3x3", "both"]
 
 
 def descriptor_to_matrix(dataframe: pd.DataFrame) -> np.ndarray:
@@ -86,6 +93,36 @@ def extract_color_matrix(
 
 
 
+def extract_spatial_matrix(
+        manifest_path: Path,
+        split: str,
+        grid_size: tuple[int, int],
+        scaler: StandardScaler | None = None
+) -> tuple[np.ndarray, np.ndarray, StandardScaler]:
+    """
+    Extracts and normalizes spatial color histogram features for a given split.
+    :param manifest_path: The path to the manifest csv.
+    :type manifest_path: Path
+    :param split: The split to read from.
+    :type split: str
+    :param grid_size: The given grid layout.
+    :type grid_size: tuple[int, int]
+    :param scaler: The fitted scaler, or None to fit a new one.
+    :type scaler: StandardScaler | None
+    :return: The feature matrix, the labels and the fitted scaler.
+    :rtype: tuple[np.ndarray, np.ndarray, StandardScaler]
+    """
+    spatial_dataframe = extract_color_spatial_features(manifest_path, split, grid_size)
+    matrix = descriptor_to_matrix(spatial_dataframe)
+    if scaler is None:
+        scaler = StandardScaler()
+        matrix = scaler.fit_transform(matrix)
+    else:
+        matrix = scaler.transform(matrix)
+    return matrix, spatial_dataframe["label"].values, scaler
+
+
+
 def encode_labels(labels: np.ndarray, encoder: LabelEncoder | None = None) -> tuple[np.ndarray, LabelEncoder]:
     """
     Encodes class string labels as integers. Fits to a new LabelEncoder if one isn't provided.
@@ -108,10 +145,9 @@ def extract_features(
         manifest_path: Path,
         split: str,
         mode: FEATURE_MODE = "both",
-        hog_scaler: StandardScaler | None = None,
-        color_scaler: StandardScaler | None = None,
+        scalers: dict[str, StandardScaler] | None = None,
         label_encoder: LabelEncoder | None = None
-) -> tuple[np.ndarray, np.ndarray, StandardScaler | None, StandardScaler | None, LabelEncoder]:
+) -> tuple[np.ndarray, np.ndarray, dict[str, StandardScaler], LabelEncoder]:
     """
     Extracts, normalizes and concatenates features for a given split.
     :param manifest_path: The path to the manifest csv.
@@ -120,27 +156,32 @@ def extract_features(
     :type split: str
     :param mode: The feature mode, using HOG, color histogram or both.
     :type mode: str
-    :param hog_scaler: The scaler to use for HOG features.
-    :type hog_scaler: StandardScaler | None
-    :param color_scaler: The scaler to use for color histogram features.
-    :type color_scaler: StandardScaler | None
-    :param label_encoder: The fitted encoder or none.
+    :param scalers: The dictionary of StandardScalers fitted to each feature type.
+    :type scalers: dict[str, StandardScaler] | None
+    :param label_encoder: The fitted label encoder, or none.
     :type label_encoder: LabelEncoder | None
     :return: X, y, hog scaler, color scaler, label encoder.
-    :rtype: tuple[np.ndarray, np.ndarray, StandardScaler, StandardScaler, LabelEncoder]
+    :rtype: tuple[np.ndarray, np.ndarray, dict[str, StandardScaler], LabelEncoder]
     """
-    assert mode in ("hog", "color", "both"), \
-        f"mode must be 'hog', 'color', or 'both', got '{mode}'"
+    assert mode in ("hog", "color", "spatial_2x2", "spatial_3x3", "both"), \
+        f"mode must be 'hog', 'color', 'spatial_2x2', 'spatial_3x3' or 'both', got '{mode}'"
 
     feature_groups = []
     labels = None
+    if scalers is None:
+        scalers = {}
 
     if mode in ("hog", "both"):
-        hog_matrix, labels, hog_scaler = extract_hog_matrix(manifest_path, split, hog_scaler)
+        hog_matrix, labels, scalers["hog"] = extract_hog_matrix(manifest_path, split, scalers.get("hog"))
         feature_groups.append(hog_matrix)
     if mode in ("color", "both"):
-        color_matrix, labels, color_scaler = extract_color_matrix(manifest_path, split, color_scaler)
+        color_matrix, labels, scalers["color"] = extract_color_matrix(manifest_path, split, scalers.get("color"))
         feature_groups.append(color_matrix)
+    if mode in GRID_SIZES:
+        grid_size = GRID_SIZES[mode]
+        matrix, labels, scalers["spatial"] = extract_spatial_matrix(manifest_path, split, grid_size, scalers.get("spatial"))
+        feature_groups.append(matrix)
+
 
     X = np.concatenate(feature_groups, axis = 1)
     y, label_encoder = encode_labels(labels, label_encoder)
@@ -148,7 +189,7 @@ def extract_features(
     print(f"{split} feature matrix shape : {X.shape}")
     print(f"{split} label vector shape : {y.shape}")
     print(f"Classes = {list(label_encoder.classes_)}")
-    return X, y, hog_scaler, color_scaler, label_encoder
+    return X, y, scalers, label_encoder
 
 
 
@@ -156,20 +197,19 @@ if __name__ == "__main__":
     from preprocessing.config import DATA_CONFIG
     manifest_path = DATA_CONFIG.processed_data_path / "manifest.csv"
 
-    for mode in ("hog", "color", "both"):
+    for mode in ("hog", "color", "spatial_2x2", "spatial_3x3", "both"):
         print("\n" + ("=" * 50))
         print(f"Mode: {mode}")
-        X_train, y_train, hog_scaler, color_scaler, label_encoder = extract_features(
+        X_train, y_train, scalers, label_encoder = extract_features(
             manifest_path,
             split = "train",
             mode = mode
         )
-        X_test, y_test, _, _, _ = extract_features(
+        X_test, y_test, _, _ = extract_features(
             manifest_path,
             split = "test",
             mode = mode,
-            hog_scaler = hog_scaler,
-            color_scaler = color_scaler,
+            scalers = scalers,
             label_encoder = label_encoder
         )
         print(f"Train: {X_train.shape}, Test: {X_test.shape}")

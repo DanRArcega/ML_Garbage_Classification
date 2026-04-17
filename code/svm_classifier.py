@@ -45,7 +45,7 @@ PARAMETER_GRIDS = {
 
 PCA_VARIANCE = 0.95
 CV_FOLDS = 5
-MODES = ("hog", "color", "both")
+MODES = ("hog", "color", "spatial_2x2", "spatial_3x3", "both")
 KERNELS = ("rbf", "poly", "linear")
 
 
@@ -235,17 +235,16 @@ def main():
         print(f"Extracting features - Mode: {mode}")
         print("=" * 60)
 
-        X_train, y_train, hog_scaler, color_scaler, label_encoder = extract_features(
+        X_train, y_train, scalers, label_encoder = extract_features(
             manifest_path,
             split = "train",
             mode = mode
         )
-        X_val, y_val, _, _, _ = extract_features(
+        X_val, y_val, _, _ = extract_features(
             manifest_path,
             split = "validation",
             mode = mode,
-            hog_scaler = hog_scaler,
-            color_scaler = color_scaler,
+            scalers = scalers,
             label_encoder = label_encoder
         )
 
@@ -263,8 +262,7 @@ def main():
             results.append({
                 "mode": mode,
                 "kernel": kernel,
-                "hog_scaler": hog_scaler,
-                "color_scaler": color_scaler,
+                "scalers": scalers,
                 "label_encoder": label_encoder,
                 "pca": pca,
                 **{k: v for k, v in metrics.items() if k != "best_estimator"}
@@ -273,7 +271,7 @@ def main():
     print_results(results)
     results_path = DATA_CONFIG.processed_data_path / "results.csv"
     csv_results = [{k: v for k, v in result.items()
-                    if k not in ("hog_scaler", "color_scaler", "label_encoder", "pca", "best_estimator")}
+                    if k not in ("scalers", "label_encoder", "pca", "best_estimator")}
                    for result in results]
     pd.DataFrame(csv_results).to_csv(results_path, index = False)
     print(f"\nResults saved to {results_path}")
@@ -286,8 +284,7 @@ def main():
         mode = best["mode"],
         kernel = best["kernel"],
         best_params = best["best_params"],
-        hog_scaler = best["hog_scaler"],
-        color_scaler = best["color_scaler"],
+        scalers = best["scalers"],
         label_encoder = best["label_encoder"],
         pca = best["pca"],
     )
