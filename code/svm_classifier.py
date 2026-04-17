@@ -45,7 +45,7 @@ PARAMETER_GRIDS = {
 
 PCA_VARIANCE = 0.95
 CV_FOLDS = 5
-MODES = ("hog", "color", "spatial_2x2", "spatial_3x3", "both")
+MODES = ("hog", "color", "spatial_2x2", "spatial_3x3", "sat_hue", "spatial_3x3_sat_hue", "both")
 KERNELS = ("rbf", "poly", "linear")
 
 

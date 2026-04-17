@@ -17,14 +17,16 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 from features.hog import extract_hog_features
 from features.color_histogram import extract_histogram_features
 from features.spatial_color import extract_color_spatial_features
+from features.sat_weighted_hue import extract_weighted_features
 
 
 GRID_SIZES = {
     "spatial_2x2": (2, 2),
-    "spatial_3x3": (3, 3)
+    "spatial_3x3": (3, 3),
+    "spatial_3x3_sat_hue": (3, 3),
 }
 
-FEATURE_MODE = Literal["hog", "color", "spatial_2x2", "spatial_3x3", "both"]
+FEATURE_MODE = Literal["hog", "color", "sat_hue", "spatial_2x2", "spatial_3x3", "spatial_3x3_sat_hue", "both"]
 
 
 def descriptor_to_matrix(dataframe: pd.DataFrame) -> np.ndarray:
@@ -141,6 +143,32 @@ def encode_labels(labels: np.ndarray, encoder: LabelEncoder | None = None) -> tu
 
 
 
+def extract_sat_hue_matrix(
+        manifest_path: Path,
+        split: str,
+        scaler: StandardScaler | None = None
+) -> tuple [np.ndarray, np.ndarray, StandardScaler]:
+    """
+    Extracts and normalizes a feature matrix for saturation weighted hue histograms.
+    :param manifest_path: The path to the manifest csv.
+    :type manifest_path: Path
+    :param split: The given split to draw from.
+    :type split: str
+    :param scaler: A scaler to fit to, or none to fit a new one.
+    :type scaler: StandardScaler | None
+    :return: The descriptors, the labels, and the fitted scaler.
+    :rtype: tuple[np.ndarray, np.ndarray, StandardScaler]
+    """
+    sat_hue_dataframe = extract_weighted_features(manifest_path, split)
+    matrix = descriptor_to_matrix(sat_hue_dataframe)
+    if scaler is None:
+        scaler = StandardScaler()
+        matrix = scaler.fit_transform(matrix)
+    else:
+        matrix = scaler.transform(matrix)
+    return matrix, sat_hue_dataframe["label"].values, scaler
+
+
 def extract_features(
         manifest_path: Path,
         split: str,
@@ -163,8 +191,8 @@ def extract_features(
     :return: X, y, hog scaler, color scaler, label encoder.
     :rtype: tuple[np.ndarray, np.ndarray, dict[str, StandardScaler], LabelEncoder]
     """
-    assert mode in ("hog", "color", "spatial_2x2", "spatial_3x3", "both"), \
-        f"mode must be 'hog', 'color', 'spatial_2x2', 'spatial_3x3' or 'both', got '{mode}'"
+    assert mode in ("hog", "color", "spatial_2x2", "spatial_3x3", "sat_hue", "spatial_3x3_sat_hue", "both"), \
+        f"mode must be 'hog', 'color', 'spatial_2x2', 'spatial_3x3', 'sat_hue', 'spatial_3x3_sat_hue' or 'both', got '{mode}'"
 
     feature_groups = []
     labels = None
@@ -177,6 +205,9 @@ def extract_features(
     if mode in ("color", "both"):
         color_matrix, labels, scalers["color"] = extract_color_matrix(manifest_path, split, scalers.get("color"))
         feature_groups.append(color_matrix)
+    if mode in ("sat_hue", "spatial_3x3_sat_hue"):
+        sat_matrix, labels, scalers["sat_hue"] = extract_sat_hue_matrix(manifest_path, split, scalers.get("sat_hue"))
+        feature_groups.append(sat_matrix)
     if mode in GRID_SIZES:
         grid_size = GRID_SIZES[mode]
         matrix, labels, scalers["spatial"] = extract_spatial_matrix(manifest_path, split, grid_size, scalers.get("spatial"))
@@ -197,7 +228,7 @@ if __name__ == "__main__":
     from preprocessing.config import DATA_CONFIG
     manifest_path = DATA_CONFIG.processed_data_path / "manifest.csv"
 
-    for mode in ("hog", "color", "spatial_2x2", "spatial_3x3", "both"):
+    for mode in ("hog", "color", "spatial_2x2", "spatial_3x3", "sat_hue", "spatial_3x3_sat_hue", "both"):
         print("\n" + ("=" * 50))
         print(f"Mode: {mode}")
         X_train, y_train, scalers, label_encoder = extract_features(
