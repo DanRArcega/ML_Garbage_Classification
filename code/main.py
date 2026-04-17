@@ -42,6 +42,7 @@ def main():
     #y_train_tensor = torch.tensor(encoded_train_labels, dtype=torch.long).to(device)
     #y_test_tensor  = torch.tensor(encoded_test_labels,  dtype=torch.long).to(device)
 
+    all_metrics = dict()
     # If KNN or Logistic Regression are to be used, load data into memory from dataloaders
     scaled_train_pixels = []
     encoded_train_labels = []
@@ -62,7 +63,7 @@ def main():
 
         # Get metrics for KNN
         knn_metrics = get_metrics(y_true=encoded_test_labels, y_pred=knn_predicted_labels)
-
+        all_metrics["knn"] = knn_metrics
         print("KNN Metrics:")
         for metric, value in knn_metrics.items():
             print(f"{metric.capitalize()}: {value}")
@@ -85,6 +86,7 @@ def main():
 
         # Get metrics for Logistic Regression
         lr_metrics = get_metrics(y_true=encoded_test_labels, y_pred=lr_predicted_labels)
+        all_metrics["lr"] = lr_metrics
         print("\nLogistic Regression Metrics:")
         for metric, value in lr_metrics.items():
             print(f"{metric.capitalize()}: {value}")
@@ -133,6 +135,7 @@ def main():
     #y_test_cpu = y_test_tensor.cpu().numpy()
 
     cnn_metrics = get_metrics(y_true = all_labels, y_pred = all_preds)
+    all_metrics["cnn"] = cnn_metrics
     print("\nCNN Metrics:")
     for metric, value in cnn_metrics.items():
         print(f"{metric.capitalize()}: {value}")
@@ -142,6 +145,9 @@ def main():
     cnn_matrix.plot()
     plt.savefig(output_dir + "/cnn_confusion_matrix.png")
     print("Saving confusion matrix...")
+
+    #Create comparison graphs
+
     plt.close()
 if __name__ == "__main__":
     main()
