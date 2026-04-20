@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib import ticker
 from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
@@ -150,11 +151,29 @@ def main():
     all_metrics["CNN"] = cnn_metrics
 
     # Create and save confusion matrix
-    # cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true = all_labels, y_pred = all_preds), display_labels=CLASSES.names)
-    # cnn_matrix.plot()
-    # plt.savefig(output_dir + "/cnn_confusion_matrix.png")
-    # print("Saving confusion matrix...")
-    # plt.close()
+    cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true = all_labels, y_pred = all_preds), display_labels=CLASSES.names)
+    cnn_matrix.plot()
+    plt.savefig(output_dir + "/cnn_confusion_matrix.png")
+    print("Saving confusion matrix...")
+    plt.clf()
+
+    fig, ax = plt.subplots()
+
+    plt.bar(all_metrics.keys(), [model.get('accuracy') for model in all_metrics.values()], align='center')
+    plt.title("Accuracy")
+
+    ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.02f'))
+    plt.savefig(output_dir + "/accuracy.png")
+    plt.clf()
+
+    plt.bar(all_metrics.keys(), [model.get('f1_score') for model in all_metrics.values()], align='center')
+    plt.title("F1 Score")
+
+    ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.02f'))
+    plt.savefig(output_dir + "/f1_score.png")
+    plt.clf()
+
+    plt.close()
 
 if __name__ == "__main__":
     main()
