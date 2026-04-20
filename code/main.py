@@ -196,7 +196,7 @@ def main():
     print("\nCNN Metrics:")
     for metric, value in cnn_metrics.items():
         print(f"{metric.capitalize()}: {value:.4f}")
-
+    all_metrics["CNN"] = cnn_metrics
     # Create and save confusion matrix
     cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true = all_labels, y_pred = all_preds), display_labels=CLASSES.names)
     cnn_matrix.plot()
@@ -205,6 +205,14 @@ def main():
     plt.clf()
 
     # Create accuracy and f1_score comparison graphs
+    plt.bar(all_metrics.keys(), [model.get("accuracy") for model in all_metrics.values()], align='center')
+    plt.title("Accuracy")
+    plt.savefig(output_dir + "/accuracy.png")
+    plt.clf()
+
+    plt.bar(all_metrics.keys(), [model.get("f1_score") for model in all_metrics.values()], align='center')
+    plt.title("F1 Score")
+    plt.savefig(output_dir + "/f1_score.png")
     plt.close()
 
 if __name__ == "__main__":
