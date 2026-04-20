@@ -150,4 +150,14 @@ the split and running the transformations while training. To make sure this part
 the file as is in terminal, which will call the "check_process" function and produce a sampling of images processed as
 denoted in the config file.
 
+## Running the training
 
+After data is downloaded and preprocessed, ensure you are located in the 'code' directory and run:
+```
+python main.py --knn --lr
+```
+Base functionality will only train the CNN model
+
+**Optional:** Including 'knn' will train the K-NN model
+
+**Optional:** Including 'lr' will train the Logistic Regression model
