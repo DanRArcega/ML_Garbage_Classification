@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 import argparse
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--knn", action = 'store_true', help = "Use KNN model" )
-    parser.add_argument("--lr", action = 'store_true', help = "Use logistic regression model" )
-    args = parser.parse_args()
-    output_dir = "../data/graphs"
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("--knn", action = 'store_true', help = "Use KNN model" )
+    # parser.add_argument("--lr", action = 'store_true', help = "Use logistic regression model" )
+    # args = parser.parse_args()
+    # output_dir = "../data/graphs"
         
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -27,127 +27,186 @@ def main():
     cnn = GarbageClassificationCNN().to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(cnn.parameters(), lr=0.001)
-
-    # Normalize pixel values to [0, 1]
-    def imgs_to_4d_tensor(imgs, device):
-        arrays = np.stack([np.array(img, dtype=np.float32) / 255.0 for img in imgs])
-        return torch.tensor(arrays[:, np.newaxis, :, :], dtype=torch.float32).to(device)
-
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
 
     print("Building dataloaders...")
     train_loader, test_loader, validation_loader = build_dataloaders(DATA_CONFIG, CLASSES)
     print("Dataloaders ready.")
-    #X_train_tensor = imgs_to_4d_tensor(train_imgs, device)
-    #X_test_tensor  = imgs_to_4d_tensor(test_imgs, device)
-    #y_train_tensor = torch.tensor(encoded_train_labels, dtype=torch.long).to(device)
-    #y_test_tensor  = torch.tensor(encoded_test_labels,  dtype=torch.long).to(device)
 
-    all_metrics = dict()
-    # If KNN or Logistic Regression are to be used, load data into memory from dataloaders
-    scaled_train_pixels = []
-    encoded_train_labels = []
-    scaled_test_pixels = []
-    encoded_test_labels = []
-    if args.knn or args.lr:
-        scaled_train_pixels, encoded_train_labels = utils.extract_dataloader_data(train_loader)
-        scaled_test_pixels, encoded_test_labels = utils.extract_dataloader_data(test_loader)
+    # # If KNN or Logistic Regression are to be used, load data into memory from dataloaders
+    # scaled_train_pixels = []
+    # encoded_train_labels = []
+    # scaled_test_pixels = []
+    # encoded_test_labels = []
+    # if args.knn or args.lr:
+        # scaled_train_pixels, encoded_train_labels = utils.extract_dataloader_data(train_loader)
+        # scaled_test_pixels, encoded_test_labels = utils.extract_dataloader_data(test_loader)
 
-    if args.knn:
+    # if args.knn:
 
-        # Train KNN
-        knn_model = KNeighborsClassifier(n_neighbors=5)
+    #     # Train KNN
+    #     knn_model = KNeighborsClassifier(n_neighbors=5)
+    #     knn_model.fit(scaled_train_pixels, encoded_train_labels)
+
+    #     # Predict
+    #     knn_predicted_labels = knn_model.predict(scaled_test_pixels)
+
+    #     # Get metrics for KNN
+    #     knn_metrics = get_metrics(y_true=encoded_test_labels, y_pred=knn_predicted_labels)
+
+    #     print("KNN Metrics:")
+    #     for metric, value in knn_metrics.items():
+    #         print(f"{metric.capitalize()}: {value}")
+
+    #     # Create and save confusion matrix
+    #     cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true=encoded_test_labels,
+    #                                                                          y_pred=knn_predicted_labels),
+    #                                                                          display_labels=CLASSES.names)
+    #     cnn_matrix.plot()
+    #     plt.savefig(output_dir + "/knn_confusion_matrix.png")
+    #     print("Saving confusion matrix...")
+
+    # if args.lr:
+    #     # Train Logistic Regression
+    #     lr_model = LogisticRegression(max_iter=1000)
+    #     lr_model.fit(scaled_train_pixels, encoded_train_labels)
+
+    #     # Predict with Logistic Regression
+    #     lr_predicted_labels = lr_model.predict(scaled_test_pixels)
+
+    #     # Get metrics for Logistic Regression
+    #     lr_metrics = get_metrics(y_true=encoded_test_labels, y_pred=lr_predicted_labels)
+    #     print("\nLogistic Regression Metrics:")
+    #     for metric, value in lr_metrics.items():
+    #         print(f"{metric.capitalize()}: {value}")
+
+    #     # Create and save confusion matrix
+    #     cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true=encoded_test_labels,
+    #                                                                          y_pred=lr_predicted_labels),
+    #                                                                          display_labels=CLASSES.names)
+    #     cnn_matrix.plot()
+    #     plt.savefig(output_dir + "/lr_confusion_matrix.png")
+    #     print("Saving confusion matrix...")
+
+    # Load data
+    train_pixels, train_labels = utils.extract_dataloader_data(train_loader)
+    test_pixels, test_labels = utils.extract_dataloader_data(test_loader)
+    evaluation_pixels, evaluation_labels = utils.extract_dataloader_data(validation_loader)
+
+    # Scale pixel values
+    scaler = StandardScaler()
+    scaled_train_pixels = scaler.fit_transform(train_pixels)
+    scaled_test_pixels = scaler.transform(test_pixels)
+    scaled_evaluation_pixels = scaler.transform(evaluation_pixels)
+
+    # Encode labels
+    label_encoder = LabelEncoder()
+    encoded_train_labels = label_encoder.fit_transform(train_labels)
+    encoded_test_labels = label_encoder.transform(test_labels)
+    encoded_evaluation_labels = label_encoder.transform(evaluation_labels)
+
+    # Find 'optimal' k for KNN
+    k_values = range(1, 50, 2)
+    knn_accuracies = []
+    for k in k_values:
+        knn_model = KNeighborsClassifier(n_neighbors=k)
         knn_model.fit(scaled_train_pixels, encoded_train_labels)
+        knn_predicted_labels = knn_model.predict(scaled_evaluation_pixels)
+        knn_metrics = get_metrics(y_true=encoded_evaluation_labels, y_pred=knn_predicted_labels)
+        knn_accuracies.append(knn_metrics['f1_score'])
 
-        # Predict
-        knn_predicted_labels = knn_model.predict(scaled_test_pixels)
+    best_k = k_values[np.argmax(knn_accuracies)]
+    print(f"Best k for KNN: {best_k} with F1 Score: {max(knn_accuracies)}")
 
-        # Get metrics for KNN
-        knn_metrics = get_metrics(y_true=encoded_test_labels, y_pred=knn_predicted_labels)
-        all_metrics["knn"] = knn_metrics
-        print("KNN Metrics:")
-        for metric, value in knn_metrics.items():
-            print(f"{metric.capitalize()}: {value}")
-
-        # Create and save confusion matrix
-        cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true=encoded_test_labels,
-                                                                             y_pred=knn_predicted_labels),
-                                                                             display_labels=CLASSES.names)
-        cnn_matrix.plot()
-        plt.savefig(output_dir + "/knn_confusion_matrix.png")
-        print("Saving confusion matrix...")
-
-    if args.lr:
-        # Train Logistic Regression
-        lr_model = LogisticRegression(max_iter=1000)
-        lr_model.fit(scaled_train_pixels, encoded_train_labels)
-
-        # Predict with Logistic Regression
-        lr_predicted_labels = lr_model.predict(scaled_test_pixels)
-
-        # Get metrics for Logistic Regression
-        lr_metrics = get_metrics(y_true=encoded_test_labels, y_pred=lr_predicted_labels)
-        all_metrics["lr"] = lr_metrics
-        print("\nLogistic Regression Metrics:")
-        for metric, value in lr_metrics.items():
-            print(f"{metric.capitalize()}: {value}")
-
-        # Create and save confusion matrix
-        cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true=encoded_test_labels,
-                                                                             y_pred=lr_predicted_labels),
-                                                                             display_labels=CLASSES.names)
-        cnn_matrix.plot()
-        plt.savefig(output_dir + "/lr_confusion_matrix.png")
-        print("Saving confusion matrix...")
-
-    # Training CNN
-    num_epochs = 20
-    #batch_size = 32
-
-    for epoch in range(num_epochs):
-        cnn.train()
-        total_loss = 0.0
-        for images, labels in train_loader:
-            images, labels = images.to(device), labels.to(device)
-            outputs = cnn(images)
-            loss = criterion(outputs, labels)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss / len(train_loader):.4f}")
-
-    cnn.eval()
-    all_preds = []
-    all_labels = []
-    with torch.no_grad():
-        for images, labels in test_loader:
-    #    for i in range(0, len(X_test_tensor), batch_size):
-    #        X_batch = X_test_tensor[i:i + batch_size]
-            images = images.to(device)
-            outputs = cnn(images)
-            _, preds = torch.max(outputs, 1)
-            all_preds.extend(preds.cpu().numpy())
-            all_labels.extend(labels.numpy())
-
-    #predicted_labels = torch.cat(all_preds).numpy()
-
-    #y_test_cpu = y_test_tensor.cpu().numpy()
-
-    cnn_metrics = get_metrics(y_true = all_labels, y_pred = all_preds)
-    all_metrics["cnn"] = cnn_metrics
-    print("\nCNN Metrics:")
-    for metric, value in cnn_metrics.items():
+    final_knn = KNeighborsClassifier(n_neighbors=best_k)
+    final_knn.fit(scaled_train_pixels, encoded_train_labels)
+    final_test_predictions = final_knn.predict(scaled_test_pixels)
+    
+    # Get and print final metrics
+    final_metrics = get_metrics(y_true=encoded_test_labels, y_pred=final_test_predictions)
+    print("\nFinal KNN Metrics (Test Set):")
+    for metric, value in final_metrics.items():
         print(f"{metric.capitalize()}: {value}")
 
+    # # Training CNN
+    # num_epochs = 50
+
+    # # Set up early stopping
+    # best_val_loss = float('inf')
+    # patience_counter = 0
+    # patience_limit = 5
+
+    # for epoch in range(num_epochs):
+    #     # --- TRAINING PHASE ---
+    #     cnn.train()
+    #     total_train_loss = 0.0
+        
+    #     for images, labels in train_loader:
+    #         images, labels = images.to(device), labels.to(device)
+    #         outputs = cnn(images)
+    #         loss = criterion(outputs, labels)
+
+    #         optimizer.zero_grad()
+    #         loss.backward()
+    #         optimizer.step()
+    #         total_train_loss += loss.item()
+            
+    #     avg_train_loss = total_train_loss / len(train_loader)
+        
+    #     # --- VALIDATION PHASE ---
+    #     cnn.eval()
+    #     total_val_loss = 0.0
+    #     with torch.no_grad():
+    #         for val_images, val_labels in validation_loader:
+    #             val_images, val_labels = val_images.to(device), val_labels.to(device)
+    #             val_outputs = cnn(val_images)
+    #             v_loss = criterion(val_outputs, val_labels)
+    #             total_val_loss += v_loss.item()
+                
+    #     avg_val_loss = total_val_loss / len(validation_loader)
+        
+    #     current_lr = optimizer.param_groups[0]['lr']
+    #     print(f"Epoch [{epoch+1}/{num_epochs}] | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | LR: {current_lr}")
+
+    #     scheduler.step(avg_val_loss)
+
+    #     # Check for early stopping
+    #     if avg_val_loss < best_val_loss:
+    #         best_val_loss = avg_val_loss
+    #         patience_counter = 0
+    #         torch.save(cnn.state_dict(), "best_cnn_model.pth")
+    #     else:
+    #         patience_counter += 1
+    #         if patience_counter >= patience_limit:
+    #             print("Early stopping triggered. No improvement in validation loss for 8 epochs.")
+    #             break
+
+    # # --- TESTING PHASE ---
+    # # Load the best model and evaluate on the test set
+    # cnn.load_state_dict(torch.load("best_cnn_model.pth", map_location=device))
+    # cnn.eval()
+
+    # all_preds = []
+    # all_labels = []
+    # with torch.no_grad():
+    #     for images, labels in test_loader:
+    #         images = images.to(device)
+    #         outputs = cnn(images)
+    #         _, preds = torch.max(outputs, 1)
+    #         all_preds.extend(preds.cpu().numpy())
+    #         all_labels.extend(labels.numpy())
+
+    # cnn_metrics = get_metrics(y_true=all_labels, y_pred=all_preds)
+    # print("\nCNN Metrics:")
+    # for metric, value in cnn_metrics.items():
+    #     print(f"{metric.capitalize()}: {value}")
+
     # Create and save confusion matrix
-    cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true = all_labels, y_pred = all_preds), display_labels=CLASSES.names)
-    cnn_matrix.plot()
-    plt.savefig(output_dir + "/cnn_confusion_matrix.png")
-    print("Saving confusion matrix...")
+    # cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true = all_labels, y_pred = all_preds), display_labels=CLASSES.names)
+    # cnn_matrix.plot()
+    # plt.savefig(output_dir + "/cnn_confusion_matrix.png")
+    # print("Saving confusion matrix...")
+    # plt.close()
 
-    #Create comparison graphs
-
-    plt.close()
 if __name__ == "__main__":
     main()
