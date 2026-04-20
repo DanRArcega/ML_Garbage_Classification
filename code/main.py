@@ -111,13 +111,13 @@ def main():
     for k in k_values:
         knn_model = KNeighborsClassifier(n_neighbors=k)
         knn_model.fit(scaled_train_pixels, encoded_train_labels)
-        knn_predicted_labels = knn_model.predict(scaled_test_pixels)
-        knn_metrics = get_metrics(y_true=encoded_test_labels, y_pred=knn_predicted_labels)
-        knn_accuracies.append(knn_metrics['accuracy'])
+        knn_predicted_labels = knn_model.predict(scaled_evaluation_pixels)
+        knn_metrics = get_metrics(y_true=encoded_evaluation_labels, y_pred=knn_predicted_labels)
+        knn_accuracies.append(knn_metrics['f1_score'])
 
     best_k = k_values[np.argmax(knn_accuracies)]
-    print(f"Best k for KNN: {best_k} with accuracy: {max(knn_accuracies)}")
-    
+    print(f"Best k for KNN: {best_k} with F1 Score: {max(knn_accuracies)}")
+
     final_knn = KNeighborsClassifier(n_neighbors=best_k)
     final_knn.fit(scaled_train_pixels, encoded_train_labels)
     final_test_predictions = final_knn.predict(scaled_test_pixels)
