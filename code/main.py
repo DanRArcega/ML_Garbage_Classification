@@ -59,7 +59,7 @@ def main():
 
         print("KNN Metrics:")
         for metric, value in knn_metrics.items():
-            print(f"{metric.capitalize()}: {value}")
+            print(f"{metric.capitalize()}: {value:.4f}")
 
         all_metrics["KNN"] = knn_metrics
         # Create and save confusion matrix
@@ -84,7 +84,7 @@ def main():
         lr_metrics = get_metrics(y_true=encoded_test_labels, y_pred=lr_predicted_labels)
         print("\nLogistic Regression Metrics:")
         for metric, value in lr_metrics.items():
-            print(f"{metric.capitalize()}: {value}")
+            print(f"{metric.capitalize()}: {value:.4f}")
         all_metrics["LR"] = lr_metrics
 
         # Create and save confusion matrix
@@ -147,7 +147,7 @@ def main():
     cnn_metrics = get_metrics(y_true=all_labels, y_pred=all_preds)
     print("\nCNN Metrics:")
     for metric, value in cnn_metrics.items():
-        print(f"{metric.capitalize()}: {value}")
+        print(f"{metric.capitalize()}: {value:.4f}")
     all_metrics["CNN"] = cnn_metrics
 
     # Create and save confusion matrix
