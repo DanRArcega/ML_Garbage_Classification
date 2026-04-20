@@ -15,12 +15,12 @@ import matplotlib.pyplot as plt
 import argparse
 
 def main():
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("--knn", action = 'store_true', help = "Use KNN model" )
-    # parser.add_argument("--lr", action = 'store_true', help = "Use logistic regression model" )
-    # args = parser.parse_args()
-    # output_dir = "../data/graphs"
-        
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--knn", action = 'store_true', help = "Use KNN model" )
+    parser.add_argument("--lr", action = 'store_true', help = "Use logistic regression model" )
+    args = parser.parse_args()
+    output_dir = "../data/graphs"
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
@@ -33,60 +33,66 @@ def main():
     train_loader, test_loader, validation_loader = build_dataloaders(DATA_CONFIG, CLASSES)
     print("Dataloaders ready.")
 
-    # # If KNN or Logistic Regression are to be used, load data into memory from dataloaders
-    # scaled_train_pixels = []
-    # encoded_train_labels = []
-    # scaled_test_pixels = []
-    # encoded_test_labels = []
-    # if args.knn or args.lr:
-    #     scaled_train_pixels, encoded_train_labels = utils.extract_dataloader_data(train_loader)
-    #     scaled_test_pixels, encoded_test_labels = utils.extract_dataloader_data(test_loader)
+    # If KNN or Logistic Regression are to be used, load data into memory from dataloaders
+    scaled_train_pixels = []
+    encoded_train_labels = []
+    scaled_test_pixels = []
+    encoded_test_labels = []
+    if args.knn or args.lr:
+        scaled_train_pixels, encoded_train_labels = utils.extract_dataloader_data(train_loader)
+        scaled_test_pixels, encoded_test_labels = utils.extract_dataloader_data(test_loader)
 
-    # if args.knn:
+    all_metrics = dict()
 
-    #     # Train KNN
-    #     knn_model = KNeighborsClassifier(n_neighbors=5)
-    #     knn_model.fit(scaled_train_pixels, encoded_train_labels)
+    if args.knn:
 
-    #     # Predict
-    #     knn_predicted_labels = knn_model.predict(scaled_test_pixels)
+        # Train KNN
+        knn_model = KNeighborsClassifier(n_neighbors=5)
+        knn_model.fit(scaled_train_pixels, encoded_train_labels)
 
-    #     # Get metrics for KNN
-    #     knn_metrics = get_metrics(y_true=encoded_test_labels, y_pred=knn_predicted_labels)
+        # Predict
+        knn_predicted_labels = knn_model.predict(scaled_test_pixels)
 
-    #     print("KNN Metrics:")
-    #     for metric, value in knn_metrics.items():
-    #         print(f"{metric.capitalize()}: {value}")
+        # Get metrics for KNN
+        knn_metrics = get_metrics(y_true=encoded_test_labels, y_pred=knn_predicted_labels)
 
-    #     # Create and save confusion matrix
-    #     cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true=encoded_test_labels,
-    #                                                                          y_pred=knn_predicted_labels),
-    #                                                                          display_labels=CLASSES.names)
-    #     cnn_matrix.plot()
-    #     plt.savefig(output_dir + "/knn_confusion_matrix.png")
-    #     print("Saving confusion matrix...")
+        print("KNN Metrics:")
+        for metric, value in knn_metrics.items():
+            print(f"{metric.capitalize()}: {value}")
 
-    # if args.lr:
-    #     # Train Logistic Regression
-    #     lr_model = LogisticRegression(max_iter=1000)
-    #     lr_model.fit(scaled_train_pixels, encoded_train_labels)
+        all_metrics["KNN"] = knn_metrics
+        # Create and save confusion matrix
+        cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true=encoded_test_labels,
+                                                                             y_pred=knn_predicted_labels),
+                                                                             display_labels=CLASSES.names)
+        cnn_matrix.plot()
+        plt.savefig(output_dir + "/knn_confusion_matrix.png")
+        print("Saving confusion matrix...")
 
-    #     # Predict with Logistic Regression
-    #     lr_predicted_labels = lr_model.predict(scaled_test_pixels)
 
-    #     # Get metrics for Logistic Regression
-    #     lr_metrics = get_metrics(y_true=encoded_test_labels, y_pred=lr_predicted_labels)
-    #     print("\nLogistic Regression Metrics:")
-    #     for metric, value in lr_metrics.items():
-    #         print(f"{metric.capitalize()}: {value}")
 
-    #     # Create and save confusion matrix
-    #     cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true=encoded_test_labels,
-    #                                                                          y_pred=lr_predicted_labels),
-    #                                                                          display_labels=CLASSES.names)
-    #     cnn_matrix.plot()
-    #     plt.savefig(output_dir + "/lr_confusion_matrix.png")
-    #     print("Saving confusion matrix...")
+    if args.lr:
+        # Train Logistic Regression
+        lr_model = LogisticRegression(max_iter=1000)
+        lr_model.fit(scaled_train_pixels, encoded_train_labels)
+
+        # Predict with Logistic Regression
+        lr_predicted_labels = lr_model.predict(scaled_test_pixels)
+
+        # Get metrics for Logistic Regression
+        lr_metrics = get_metrics(y_true=encoded_test_labels, y_pred=lr_predicted_labels)
+        print("\nLogistic Regression Metrics:")
+        for metric, value in lr_metrics.items():
+            print(f"{metric.capitalize()}: {value}")
+        all_metrics["LR"] = lr_metrics
+
+        # Create and save confusion matrix
+        cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true=encoded_test_labels,
+                                                                             y_pred=lr_predicted_labels),
+                                                                             display_labels=CLASSES.names)
+        cnn_matrix.plot()
+        plt.savefig(output_dir + "/lr_confusion_matrix.png")
+        print("Saving confusion matrix...")
 
     # Training CNN
     num_epochs = 50
@@ -141,6 +147,7 @@ def main():
     print("\nCNN Metrics:")
     for metric, value in cnn_metrics.items():
         print(f"{metric.capitalize()}: {value}")
+    all_metrics["CNN"] = cnn_metrics
 
     # Create and save confusion matrix
     # cnn_matrix = metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_true = all_labels, y_pred = all_preds), display_labels=CLASSES.names)
