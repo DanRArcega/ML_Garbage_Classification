@@ -91,6 +91,11 @@ def main():
     # Training CNN
     num_epochs = 50
 
+    # Set up early stopping
+    best_val_loss = float('inf')
+    patience_counter = 0
+    patience_limit = 8 # Number of epochs to wait for improvement before stopping (including 3 epochs for learning rate reduction)
+
     for epoch in range(num_epochs):
         # --- TRAINING PHASE ---
         cnn.train()
@@ -125,8 +130,22 @@ def main():
 
         scheduler.step(avg_val_loss)
 
+        # Check for early stopping
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            patience_counter = 0
+            torch.save(cnn.state_dict(), "best_cnn_model.pth")
+        else:
+            patience_counter += 1
+            if patience_counter >= patience_limit:
+                print("Early stopping triggered. No improvement in validation loss for 8 epochs.")
+                break
+
     # --- TESTING PHASE ---
+    # Load the best model and evaluate on the test set
+    cnn.load_state_dict(torch.load("best_cnn_model.pth", map_location=device))
     cnn.eval()
+
     all_preds = []
     all_labels = []
     with torch.no_grad():
